@@ -29,7 +29,7 @@ function BEMHTMLController($scope) {
 
     $scope.loadSettings = function(settings) {
         $scope.data = angular.fromJson(settings);
-        $scope.data.inputBemjson = $scope.data.inputBemjson || '{ block: \'button\', text: \'ÐšÐ½Ð¾Ð¿ÐºÐ°\' }';
+        $scope.data.inputBemjson = $scope.data.inputBemjson || '{ block: \'button\', text: \'button\' }';
         $scope.data.inputMatchers = $scope.data.inputMatchers ||
             ["block('button')(",
                 "    tag()('button'),",

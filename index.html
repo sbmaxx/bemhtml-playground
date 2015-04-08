@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html ng-app>
     <head>
-        <meta http-equiv="content-type" content="text/html; charset=utf8"/>
         <title>BEMHTML online demo</title>
         <link href="css/cm.css" type="text/css" rel="stylesheet" />
         <link href="css/index.css" type="text/css" rel="stylesheet" />
+        <meta charset="utf-8">
     </head>
     <body>
         <div class="layout abs" id="cnt" ng-controller="BEMHTMLController">
@@ -29,6 +29,11 @@
         <script src="js/codemirror.js"></script>
         <script src="js/bundle.js"></script>
         <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                replaceOutput(document.getElementById('result-html'));
+                replaceTextarea(document.getElementById('input-bemjson'), 'inputBemjson');
+                replaceTextarea(document.getElementById('input-matchers'), 'inputMatchers');
+            }, false);
             function replaceTextarea(textArea, vn) {
                 var div = document.createElement('div');
                 div.className = 'abs code';
@@ -84,13 +89,11 @@
                 );
                 textArea.onchange = function() {
                     cm.doc.setValue(textArea.value);
+                    var totalLines = cm.lineCount();
+                    cm.autoFormatRange({ line:0, ch:0 }, { line: totalLines });
                 };
+                textArea.onchange();
             }
-            window.setTimeout(function() {
-                replaceTextarea(document.getElementById('input-bemjson'), 'inputBemjson');
-                replaceTextarea(document.getElementById('input-matchers'), 'inputMatchers');
-                replaceOutput(document.getElementById('result-html'));
-            }, 0);
         </script>
     </body>
 </html>
