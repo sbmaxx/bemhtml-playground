@@ -283,10 +283,10 @@
 	var bemhtml = __webpack_require__(1);
 	var assert = __webpack_require__(6);
 	var vm = __webpack_require__(7);
-	var esprima = __webpack_require__(10);
-	var estraverse = __webpack_require__(9);
+	var esprima = __webpack_require__(9);
+	var estraverse = __webpack_require__(8);
 	var uglify = __webpack_require__(5);
-	var xjst = __webpack_require__(8);
+	var xjst = __webpack_require__(10);
 
 	function Compiler(options) {
 	  options = this.options = options || {};
@@ -2708,7 +2708,7 @@
 	// when used in node, this will actually load the util module we depend on
 	// versus loading the builtin util module as happens otherwise
 	// this is a bug in node module loading as far as I am concerned
-	var util = __webpack_require__(11);
+	var util = __webpack_require__(14);
 
 	var pSlice = Array.prototype.slice;
 	var hasOwn = Object.prototype.hasOwnProperty;
@@ -3046,7 +3046,7 @@
 /* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var indexOf = __webpack_require__(12);
+	var indexOf = __webpack_require__(16);
 
 	var Object_keys = function (obj) {
 	    if (Object.keys) return Object.keys(obj)
@@ -3188,27 +3188,6 @@
 
 /***/ },
 /* 8 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var xjst = exports;
-
-	// Export utils
-	xjst.utils = __webpack_require__(13);
-
-	// Export compiler stuff
-	xjst.compiler = __webpack_require__(16);
-
-	// Export cli
-	xjst.run = __webpack_require__(14).run;
-
-	// Compatibility APIs
-	xjst.generate = __webpack_require__(15).generate;
-	xjst.compile = __webpack_require__(15).compile;
-	xjst.translate = __webpack_require__(15).translate;
-
-
-/***/ },
-/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
@@ -3903,7 +3882,7 @@
 
 
 /***/ },
-/* 10 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
@@ -7739,7 +7718,377 @@
 
 
 /***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var xjst = exports;
+
+	// Export utils
+	xjst.utils = __webpack_require__(11);
+
+	// Export compiler stuff
+	xjst.compiler = __webpack_require__(15);
+
+	// Export cli
+	xjst.run = __webpack_require__(12).run;
+
+	// Compatibility APIs
+	xjst.generate = __webpack_require__(13).generate;
+	xjst.compile = __webpack_require__(13).compile;
+	xjst.translate = __webpack_require__(13).translate;
+
+
+/***/ },
 /* 11 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var utils = exports;
+
+	var estraverse = __webpack_require__(8);
+
+	utils.run = function run(templates, context) {
+	  var ignore = context.$ignore;
+	  var globalCtx = __$$globalCtx;
+	  if (!ignore) {
+	    context.$ignore = [];
+	    ignore = context.$ignore;
+	  }
+
+	  var index = 0;
+	  var currentId = null;
+	  var last = null;
+
+	  function template() {
+	    var id = index++;
+	    var match = !context.$override &&
+	                Array.prototype.every.call(arguments, function(cond) {
+	      try {
+	        return typeof cond === 'function' ? cond.call(context) : cond;
+	      } catch (e) {
+	        if (/Cannot read property/.test(e.message))
+	          return false;
+	      }
+	    });
+
+	    // Respect applyNext
+	    if (match && ignore.indexOf(id) !== -1) match = false;
+
+	    // Ignore body if match failed
+	    if (!match) return function() {};
+
+	    // Set current id
+	    currentId = id;
+
+	    return function bodyHandler(body) {
+	      last = {
+	        id: id,
+	        body: typeof body === 'function' ? body.bind(context)
+	                                         : function() { return body }
+	      };
+
+	      return null;
+	    };
+	  };
+
+	  function local() {
+	    var backup = [];
+	    var args = Array.prototype.slice.call(arguments);
+
+	    args.forEach(function(change) {
+	      if (change === null)
+	        return;
+
+	      if (typeof change !== 'object')
+	        throw new Error('apply() and local() accepts only object literals');
+
+	      Object.keys(change).forEach(function(key) {
+	        var parts = key.split('.'),
+	            newValue = change[key],
+	            oldValue,
+	            isGlobal = parts[0] === '$$global',
+	            subContext = isGlobal ? globalCtx : context;
+
+	        if (isGlobal) {
+	          parts.shift();
+	        }
+
+	        // Dive inside
+	        for (var i = 0; i < parts.length - 1; i++) {
+	          subContext = subContext[parts[i]];
+	        }
+
+	        // Set property and remember old value
+	        oldValue = subContext[parts[i]];
+	        subContext[parts[i]] = newValue;
+
+	        // Push old value to backup list
+	        backup.push({
+	          isGlobal: isGlobal,
+	          key: parts,
+	          value: oldValue
+	        });
+	      });
+	    });
+
+	    return function bodyHandler(body) {
+	      var result = typeof body === 'function' ? body.call(context) : body;
+
+	      // Rollback old values
+	      for (var i = backup.length - 1; i >= 0; i--) {
+	        var subContext = backup[i].isGlobal ? globalCtx : context,
+	            change = backup[i];
+
+	        // Dive inside
+	        for (var j = 0; j < change.key.length - 1; j++) {
+	          subContext = subContext[change.key[j]];
+	        }
+
+	        // Restore value
+	        subContext[change.key[j]] = change.value;
+	      }
+
+	      return result;
+	    };
+	  };
+
+	  function apply() {
+	    return local.apply(this, arguments)(function() {
+	      return run(templates, context);
+	    });
+	  };
+
+	  function applyNext() {
+	    return local.apply(this, arguments)(function() {
+	      var len = ignore.push(currentId);
+	      var ret = run(templates, context);
+	      if (len === ignore.length)
+	        ignore.pop();
+	      return ret;
+	    });
+	  };
+
+	  function oninit(cb) {
+	    if (context.$init) {
+	      if (context.$context && !context.$context.resetApplyNext) {
+	        context.$context.resetApplyNext = function(context) {
+	          context.$ignore.length = 0;
+	        };
+	      }
+
+	      cb(exports, context.$context);
+	    }
+	  }
+
+	  function fetch(name) {
+	    var parts = name.split('.'),
+	        value = globalCtx;
+
+	    // Dive inside
+	    for (var i = 0; i < parts.length; i++) {
+	      value = value[parts[i]];
+	    }
+
+	    return value;
+	  }
+
+	  function set(name, val) {
+	    var parts = name.split('.'),
+	        value = globalCtx;
+
+	    // Dive inside
+	    for (var i = 0; i < parts.length - 1; i++) {
+	      value = value[parts[i]];
+	    }
+	    value[parts[i]] = val;
+
+	    return value;
+	  };
+
+	  templates.call(context, template, local, apply, applyNext, oninit, fetch,
+	                 set);
+
+	  if (!last) {
+	    if (context.$init) return;
+	    throw new Error('Match failed');
+	  }
+
+	  return last.body();
+	};
+
+	utils.cloneAst = function cloneAst(ast) {
+	  if (ast === null || ast === undefined ||
+	      typeof ast === 'number' || typeof ast === 'string' ||
+	      typeof ast === 'boolean' || ast instanceof RegExp) {
+	    return ast;
+	  }
+	  if (Array.isArray(ast)) return ast.map(cloneAst);
+
+	  var res = {};
+	  Object.keys(ast).forEach(function(key) {
+	    res[key] = cloneAst(ast[key]);
+	  })
+
+	  return res;
+	};
+
+	var visitorKeys = estraverse.VisitorKeys;
+
+	var identifyMap = {
+	  AssignmentExpression: function(ast) {
+	    return ast.operator;
+	  },
+	  BinaryExpression: function(ast) {
+	    return ast.operator;
+	  },
+	  FunctionDeclaration: function(ast) {
+	    return ast.generator + ':' + ast.expression;
+	  },
+	  FunctionExpression: function(ast) {
+	    return ast.generator + ':' + ast.expression;
+	  },
+	  Identifier: function(ast) {
+	    return ast.name;
+	  },
+	  Literal: function(ast) {
+	    return JSON.stringify(ast.value);
+	  },
+	  MemberExpression: function(ast) {
+	    return ast.computed;
+	  },
+	  Property: function(ast) {
+	    return ast.kind;
+	  },
+	  UnaryExpression: function(ast) {
+	    return ast.operator + ':' + ast.prefix;
+	  },
+	  UpdateExpression: function(ast) {
+	    return ast.prefix;
+	  },
+	  VariableDeclaration: function(ast) {
+	    return ast.kind;
+	  }
+	};
+
+	utils.identify = identify;
+	function identify(ast) {
+	  if (!ast)
+	    return '';
+	  if (Array.isArray(ast))
+	    return '[' + ast.map(identify).join(',') + ']';
+
+	  var t = ast.type;
+	  var out = '{' + t;
+	  var map = identifyMap[t];
+	  if (map)
+	    out += ':' + map(ast);
+
+	  var keys = visitorKeys[t];
+	  if (keys.length)
+	    out += '->';
+	  for (var i = 0; i < keys.length; i++) {
+	    if (i !== 0)
+	      out += ',';
+	    out += identify(ast[keys[i]]);
+	  }
+
+	  out += '}';
+	  return out;
+	};
+
+	utils.isLiteral = function isLiteral(ast) {
+	  if (ast.type === 'Literal')
+	    return true;
+
+	  if (ast.type === 'Identifier' && ast.name === 'undefined')
+	    return true;
+
+	  if (ast.type === 'ObjectExpression') {
+	    return ast.properties.every(function(prop) {
+	      return isLiteral(prop.value);
+	    });
+	  }
+
+	  if (ast.type === 'ArrayExpression') {
+	    return ast.elements.every(function(elem) {
+	      return isLiteral(elem);
+	    });
+	  }
+
+	  return false;
+	};
+
+
+/***/ },
+/* 12 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(process) {var xjst = __webpack_require__(10),
+	    q = __webpack_require__(22),
+	    fs = {};
+
+	//
+	// ### function run (options)
+	// #### @options {Object} Compiler options
+	// Compiles input stream or file and writes result to output stream or file
+	//
+	exports.run = function run(options) {
+	  var input = [],
+	      deferred = q.defer();
+
+	  options.input.on('data', function(chunk) {
+	    input.push(chunk);
+	  });
+
+	  options.input.once('end', function() {
+	    finish(input.join(''));
+	  });
+
+	  options.input.resume();
+
+	  function finish(source) {
+	    var out = xjst.generate(source, options);
+
+	    options.output.write(out);
+
+	    if (options.output === process.stdout) {
+	      options.output.write('\n');
+	    } else {
+	      options.output.end();
+	    }
+
+	    deferred.resolve();
+	  }
+
+	  return deferred.promise;
+	};
+
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21)))
+
+/***/ },
+/* 13 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var xjst = __webpack_require__(10);
+
+	exports.generate = function generate(code, options) {
+	  return xjst.compiler.create(options).generate(code);
+	};
+
+	exports.compile = function compile(code, options) {
+	  return xjst.compiler.create(options).compile(code);
+	};
+
+	exports.translate = function translate(ast, code, options) {
+	  if (typeof code !== 'string') {
+	    options = code;
+	    code = null;
+	  }
+	  return xjst.compiler.create(options).translate(ast, code);
+	};
+
+
+/***/ },
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global, process) {// Copyright Joyent, Inc. and other Node contributors.
@@ -8267,7 +8616,7 @@
 	}
 	exports.isPrimitive = isPrimitive;
 
-	exports.isBuffer = __webpack_require__(17);
+	exports.isBuffer = __webpack_require__(20);
 
 	function objectToString(o) {
 	  return Object.prototype.toString.call(o);
@@ -8311,7 +8660,7 @@
 	 *     prototype.
 	 * @param {function} superCtor Constructor function to inherit prototype from.
 	 */
-	exports.inherits = __webpack_require__(22);
+	exports.inherits = __webpack_require__(23);
 
 	exports._extend = function(origin, add) {
 	  // Don't do anything if add isn't an object
@@ -8329,10 +8678,36 @@
 	  return Object.prototype.hasOwnProperty.call(obj, prop);
 	}
 
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(18)))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(21)))
 
 /***/ },
-/* 12 */
+/* 15 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// Entities
+	exports.Predicate = __webpack_require__(18).Predicate;
+	exports.GenericBody = __webpack_require__(18).GenericBody;
+	exports.Body = __webpack_require__(18).Body;
+	exports.Template = __webpack_require__(18).Template;
+	exports.Map = __webpack_require__(18).Map;
+	exports.Group = __webpack_require__(18).Group;
+	exports.Pair = __webpack_require__(18).Pair;
+
+	// Helpers
+	exports.Jailer = __webpack_require__(19).Jailer;
+	exports.Inliner = __webpack_require__(19).Inliner;
+	exports.Splitter = __webpack_require__(19).Splitter;
+	exports.MapFlattener = __webpack_require__(19).MapFlattener;
+
+	// Base
+	exports.Compiler = __webpack_require__(17).Compiler;
+
+	// API method
+	exports.create = __webpack_require__(17).create;
+
+
+/***/ },
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -8347,468 +8722,18 @@
 	};
 
 /***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var utils = exports;
-
-	var estraverse = __webpack_require__(9);
-
-	utils.run = function run(templates, context) {
-	  var ignore = context.$ignore;
-	  var globalCtx = __$$globalCtx;
-	  if (!ignore) {
-	    context.$ignore = [];
-	    ignore = context.$ignore;
-	  }
-
-	  var index = 0;
-	  var currentId = null;
-	  var last = null;
-
-	  function template() {
-	    var id = index++;
-	    var match = !context.$override &&
-	                Array.prototype.every.call(arguments, function(cond) {
-	      try {
-	        return typeof cond === 'function' ? cond.call(context) : cond;
-	      } catch (e) {
-	        if (/Cannot read property/.test(e.message))
-	          return false;
-	      }
-	    });
-
-	    // Respect applyNext
-	    if (match && ignore.indexOf(id) !== -1) match = false;
-
-	    // Ignore body if match failed
-	    if (!match) return function() {};
-
-	    // Set current id
-	    currentId = id;
-
-	    return function bodyHandler(body) {
-	      last = {
-	        id: id,
-	        body: typeof body === 'function' ? body.bind(context)
-	                                         : function() { return body }
-	      };
-
-	      return null;
-	    };
-	  };
-
-	  function local() {
-	    var backup = [];
-	    var args = Array.prototype.slice.call(arguments);
-
-	    args.forEach(function(change) {
-	      if (change === null)
-	        return;
-
-	      if (typeof change !== 'object')
-	        throw new Error('apply() and local() accepts only object literals');
-
-	      Object.keys(change).forEach(function(key) {
-	        var parts = key.split('.'),
-	            newValue = change[key],
-	            oldValue,
-	            isGlobal = parts[0] === '$$global',
-	            subContext = isGlobal ? globalCtx : context;
-
-	        if (isGlobal) {
-	          parts.shift();
-	        }
-
-	        // Dive inside
-	        for (var i = 0; i < parts.length - 1; i++) {
-	          subContext = subContext[parts[i]];
-	        }
-
-	        // Set property and remember old value
-	        oldValue = subContext[parts[i]];
-	        subContext[parts[i]] = newValue;
-
-	        // Push old value to backup list
-	        backup.push({
-	          isGlobal: isGlobal,
-	          key: parts,
-	          value: oldValue
-	        });
-	      });
-	    });
-
-	    return function bodyHandler(body) {
-	      var result = typeof body === 'function' ? body.call(context) : body;
-
-	      // Rollback old values
-	      for (var i = backup.length - 1; i >= 0; i--) {
-	        var subContext = backup[i].isGlobal ? globalCtx : context,
-	            change = backup[i];
-
-	        // Dive inside
-	        for (var j = 0; j < change.key.length - 1; j++) {
-	          subContext = subContext[change.key[j]];
-	        }
-
-	        // Restore value
-	        subContext[change.key[j]] = change.value;
-	      }
-
-	      return result;
-	    };
-	  };
-
-	  function apply() {
-	    return local.apply(this, arguments)(function() {
-	      return run(templates, context);
-	    });
-	  };
-
-	  function applyNext() {
-	    return local.apply(this, arguments)(function() {
-	      var len = ignore.push(currentId);
-	      var ret = run(templates, context);
-	      if (len === ignore.length)
-	        ignore.pop();
-	      return ret;
-	    });
-	  };
-
-	  function oninit(cb) {
-	    if (context.$init) {
-	      if (context.$context && !context.$context.resetApplyNext) {
-	        context.$context.resetApplyNext = function(context) {
-	          context.$ignore.length = 0;
-	        };
-	      }
-
-	      cb(exports, context.$context);
-	    }
-	  }
-
-	  function fetch(name) {
-	    var parts = name.split('.'),
-	        value = globalCtx;
-
-	    // Dive inside
-	    for (var i = 0; i < parts.length; i++) {
-	      value = value[parts[i]];
-	    }
-
-	    return value;
-	  }
-
-	  function set(name, val) {
-	    var parts = name.split('.'),
-	        value = globalCtx;
-
-	    // Dive inside
-	    for (var i = 0; i < parts.length - 1; i++) {
-	      value = value[parts[i]];
-	    }
-	    value[parts[i]] = val;
-
-	    return value;
-	  };
-
-	  templates.call(context, template, local, apply, applyNext, oninit, fetch,
-	                 set);
-
-	  if (!last) {
-	    if (context.$init) return;
-	    throw new Error('Match failed');
-	  }
-
-	  return last.body();
-	};
-
-	utils.cloneAst = function cloneAst(ast) {
-	  if (ast === null || ast === undefined ||
-	      typeof ast === 'number' || typeof ast === 'string' ||
-	      typeof ast === 'boolean' || ast instanceof RegExp) {
-	    return ast;
-	  }
-	  if (Array.isArray(ast)) return ast.map(cloneAst);
-
-	  var res = {};
-	  Object.keys(ast).forEach(function(key) {
-	    res[key] = cloneAst(ast[key]);
-	  })
-
-	  return res;
-	};
-
-	var visitorKeys = estraverse.VisitorKeys;
-
-	var identifyMap = {
-	  AssignmentExpression: function(ast) {
-	    return ast.operator;
-	  },
-	  BinaryExpression: function(ast) {
-	    return ast.operator;
-	  },
-	  FunctionDeclaration: function(ast) {
-	    return ast.generator + ':' + ast.expression;
-	  },
-	  FunctionExpression: function(ast) {
-	    return ast.generator + ':' + ast.expression;
-	  },
-	  Identifier: function(ast) {
-	    return ast.name;
-	  },
-	  Literal: function(ast) {
-	    return JSON.stringify(ast.value);
-	  },
-	  MemberExpression: function(ast) {
-	    return ast.computed;
-	  },
-	  Property: function(ast) {
-	    return ast.kind;
-	  },
-	  UnaryExpression: function(ast) {
-	    return ast.operator + ':' + ast.prefix;
-	  },
-	  UpdateExpression: function(ast) {
-	    return ast.prefix;
-	  },
-	  VariableDeclaration: function(ast) {
-	    return ast.kind;
-	  }
-	};
-
-	utils.identify = identify;
-	function identify(ast) {
-	  if (!ast)
-	    return '';
-	  if (Array.isArray(ast))
-	    return '[' + ast.map(identify).join(',') + ']';
-
-	  var t = ast.type;
-	  var out = '{' + t;
-	  var map = identifyMap[t];
-	  if (map)
-	    out += ':' + map(ast);
-
-	  var keys = visitorKeys[t];
-	  if (keys.length)
-	    out += '->';
-	  for (var i = 0; i < keys.length; i++) {
-	    if (i !== 0)
-	      out += ',';
-	    out += identify(ast[keys[i]]);
-	  }
-
-	  out += '}';
-	  return out;
-	};
-
-	utils.isLiteral = function isLiteral(ast) {
-	  if (ast.type === 'Literal')
-	    return true;
-
-	  if (ast.type === 'Identifier' && ast.name === 'undefined')
-	    return true;
-
-	  if (ast.type === 'ObjectExpression') {
-	    return ast.properties.every(function(prop) {
-	      return isLiteral(prop.value);
-	    });
-	  }
-
-	  if (ast.type === 'ArrayExpression') {
-	    return ast.elements.every(function(elem) {
-	      return isLiteral(elem);
-	    });
-	  }
-
-	  return false;
-	};
-
-
-/***/ },
-/* 14 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {var xjst = __webpack_require__(8),
-	    q = __webpack_require__(23),
-	    fs = {};
-
-	//
-	// ### function run (options)
-	// #### @options {Object} Compiler options
-	// Compiles input stream or file and writes result to output stream or file
-	//
-	exports.run = function run(options) {
-	  var input = [],
-	      deferred = q.defer();
-
-	  options.input.on('data', function(chunk) {
-	    input.push(chunk);
-	  });
-
-	  options.input.once('end', function() {
-	    finish(input.join(''));
-	  });
-
-	  options.input.resume();
-
-	  function finish(source) {
-	    var out = xjst.generate(source, options);
-
-	    options.output.write(out);
-
-	    if (options.output === process.stdout) {
-	      options.output.write('\n');
-	    } else {
-	      options.output.end();
-	    }
-
-	    deferred.resolve();
-	  }
-
-	  return deferred.promise;
-	};
-
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(18)))
-
-/***/ },
-/* 15 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var xjst = __webpack_require__(8);
-
-	exports.generate = function generate(code, options) {
-	  return xjst.compiler.create(options).generate(code);
-	};
-
-	exports.compile = function compile(code, options) {
-	  return xjst.compiler.create(options).compile(code);
-	};
-
-	exports.translate = function translate(ast, code, options) {
-	  if (typeof code !== 'string') {
-	    options = code;
-	    code = null;
-	  }
-	  return xjst.compiler.create(options).translate(ast, code);
-	};
-
-
-/***/ },
-/* 16 */
-/***/ function(module, exports, __webpack_require__) {
-
-	// Entities
-	exports.Predicate = __webpack_require__(20).Predicate;
-	exports.GenericBody = __webpack_require__(20).GenericBody;
-	exports.Body = __webpack_require__(20).Body;
-	exports.Template = __webpack_require__(20).Template;
-	exports.Map = __webpack_require__(20).Map;
-	exports.Group = __webpack_require__(20).Group;
-	exports.Pair = __webpack_require__(20).Pair;
-
-	// Helpers
-	exports.Jailer = __webpack_require__(21).Jailer;
-	exports.Inliner = __webpack_require__(21).Inliner;
-	exports.Splitter = __webpack_require__(21).Splitter;
-	exports.MapFlattener = __webpack_require__(21).MapFlattener;
-
-	// Base
-	exports.Compiler = __webpack_require__(19).Compiler;
-
-	// API method
-	exports.create = __webpack_require__(19).create;
-
-
-/***/ },
 /* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = function isBuffer(arg) {
-	  return arg && typeof arg === 'object'
-	    && typeof arg.copy === 'function'
-	    && typeof arg.fill === 'function'
-	    && typeof arg.readUInt8 === 'function';
-	}
-
-/***/ },
-/* 18 */
-/***/ function(module, exports, __webpack_require__) {
-
-	// shim for using process in browser
-
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    draining = true;
-	    var currentQueue;
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        var i = -1;
-	        while (++i < len) {
-	            currentQueue[i]();
-	        }
-	        len = queue.length;
-	    }
-	    draining = false;
-	}
-	process.nextTick = function (fun) {
-	    queue.push(fun);
-	    if (!draining) {
-	        setTimeout(drainQueue, 0);
-	    }
-	};
-
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
-
-	function noop() {}
-
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
-
-	// TODO(shtylman)
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
-
-
-/***/ },
-/* 19 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var esprima = __webpack_require__(10),
+	var esprima = __webpack_require__(9),
 	    uglify = __webpack_require__(5),
-	    estraverse = __webpack_require__(9),
+	    estraverse = __webpack_require__(8),
 	    vm = __webpack_require__(7),
-	    util = __webpack_require__(11),
+	    util = __webpack_require__(14),
 	    assert = __webpack_require__(6);
 
-	var xjst = __webpack_require__(8);
-	var compiler = __webpack_require__(16);
+	var xjst = __webpack_require__(10);
+	var compiler = __webpack_require__(15);
 
 	// Get required constructors
 	var Inliner = compiler.Inliner;
@@ -9926,7 +9851,7 @@
 
 
 /***/ },
-/* 20 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	exports.Predicate = __webpack_require__(24).Predicate;
@@ -9939,7 +9864,7 @@
 
 
 /***/ },
-/* 21 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	exports.Jailer = __webpack_require__(30).Jailer;
@@ -9949,36 +9874,82 @@
 
 
 /***/ },
-/* 22 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
-	if (typeof Object.create === 'function') {
-	  // implementation from standard node.js 'util' module
-	  module.exports = function inherits(ctor, superCtor) {
-	    ctor.super_ = superCtor
-	    ctor.prototype = Object.create(superCtor.prototype, {
-	      constructor: {
-	        value: ctor,
-	        enumerable: false,
-	        writable: true,
-	        configurable: true
-	      }
-	    });
-	  };
-	} else {
-	  // old school shim for old browsers
-	  module.exports = function inherits(ctor, superCtor) {
-	    ctor.super_ = superCtor
-	    var TempCtor = function () {}
-	    TempCtor.prototype = superCtor.prototype
-	    ctor.prototype = new TempCtor()
-	    ctor.prototype.constructor = ctor
-	  }
+	module.exports = function isBuffer(arg) {
+	  return arg && typeof arg === 'object'
+	    && typeof arg.copy === 'function'
+	    && typeof arg.fill === 'function'
+	    && typeof arg.readUInt8 === 'function';
 	}
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
+	// shim for using process in browser
+
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    draining = true;
+	    var currentQueue;
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        var i = -1;
+	        while (++i < len) {
+	            currentQueue[i]();
+	        }
+	        len = queue.length;
+	    }
+	    draining = false;
+	}
+	process.nextTick = function (fun) {
+	    queue.push(fun);
+	    if (!draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+
+	function noop() {}
+
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+
+	// TODO(shtylman)
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
 
 
 /***/ },
-/* 23 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process, setImmediate) {// vim:ts=4:sts=4:sw=4:
@@ -11919,13 +11890,42 @@
 
 	});
 
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(18), __webpack_require__(34).setImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21), __webpack_require__(34).setImmediate))
+
+/***/ },
+/* 23 */
+/***/ function(module, exports, __webpack_require__) {
+
+	if (typeof Object.create === 'function') {
+	  // implementation from standard node.js 'util' module
+	  module.exports = function inherits(ctor, superCtor) {
+	    ctor.super_ = superCtor
+	    ctor.prototype = Object.create(superCtor.prototype, {
+	      constructor: {
+	        value: ctor,
+	        enumerable: false,
+	        writable: true,
+	        configurable: true
+	      }
+	    });
+	  };
+	} else {
+	  // old school shim for old browsers
+	  module.exports = function inherits(ctor, superCtor) {
+	    ctor.super_ = superCtor
+	    var TempCtor = function () {}
+	    TempCtor.prototype = superCtor.prototype
+	    ctor.prototype = new TempCtor()
+	    ctor.prototype.constructor = ctor
+	  }
+	}
+
 
 /***/ },
 /* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var xjst = __webpack_require__(8);
+	var xjst = __webpack_require__(10);
 
 	// Predicate constructor
 	function Predicate(compiler, expr, value) {
@@ -11986,9 +11986,9 @@
 /* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var util = __webpack_require__(11);
-	var estraverse = __webpack_require__(9);
-	var entities = __webpack_require__(20);
+	var util = __webpack_require__(14);
+	var estraverse = __webpack_require__(8);
+	var entities = __webpack_require__(18);
 
 	var Predicate = entities.Predicate;
 
@@ -12427,8 +12427,8 @@
 /* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var util = __webpack_require__(11);
-	var entities = __webpack_require__(20);
+	var util = __webpack_require__(14);
+	var entities = __webpack_require__(18);
 
 	var GenericBody = entities.GenericBody;
 	var Body = entities.Body;
@@ -12534,8 +12534,8 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var assert = __webpack_require__(6);
-	var util = __webpack_require__(11);
-	var entities = __webpack_require__(20);
+	var util = __webpack_require__(14);
+	var entities = __webpack_require__(18);
 
 	var GenericBody = entities.GenericBody;
 
@@ -12695,8 +12695,8 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var assert = __webpack_require__(6);
-	var util = __webpack_require__(11);
-	var entities = __webpack_require__(20);
+	var util = __webpack_require__(14);
+	var entities = __webpack_require__(18);
 
 	var GenericBody = entities.GenericBody;
 	var Map = entities.Map;
@@ -12790,8 +12790,8 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var assert = __webpack_require__(6);
-	var util = __webpack_require__(11);
-	var entities = __webpack_require__(20);
+	var util = __webpack_require__(14);
+	var entities = __webpack_require__(18);
 
 	var GenericBody = entities.GenericBody;
 	var Map = entities.Map;
@@ -12831,7 +12831,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var assert = __webpack_require__(6);
-	var estraverse = __webpack_require__(9);
+	var estraverse = __webpack_require__(8);
 
 	function Jailer() {
 	  this.jailIndex = 0;
@@ -12917,7 +12917,7 @@
 /* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var estraverse = __webpack_require__(9);
+	var estraverse = __webpack_require__(8);
 
 	function Inliner() {
 	  this.lastBlock = null;
@@ -13142,7 +13142,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var assert = __webpack_require__(6);
-	var estraverse = __webpack_require__(9);
+	var estraverse = __webpack_require__(8);
 
 	function Splitter(compiler) {
 	  this.compiler = compiler;
@@ -13409,7 +13409,7 @@
 
 	var assert = __webpack_require__(6);
 
-	var compiler = __webpack_require__(16);
+	var compiler = __webpack_require__(15);
 	var Map = compiler.Map;
 	var Pair = compiler.Pair;
 
@@ -13531,7 +13531,7 @@
 /* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(18).nextTick;
+	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(21).nextTick;
 	var apply = Function.prototype.apply;
 	var slice = Array.prototype.slice;
 	var immediateIds = {};
