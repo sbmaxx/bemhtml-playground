@@ -2,16 +2,14 @@ function BEMHTMLController($scope) {
 
     $scope.compiledHtml = function() {
         $scope.error = '';
-        var json,
-            BEMHTML;
+        var json;
         try {
             json = eval('(' + $scope.data.inputBemjson + ')');
         } catch (e) {
             return 'BEMJSON parse error:\n' + e.stack;
         }
         try {
-            eval(window.compile($scope.data.inputMatchers));
-            BEMHTML = this.BEMHTML;
+            window.compileBEMHTML($scope.data.inputMatchers);
         } catch (e) {
             console.log('failed compile');
             console.log(e.message);
