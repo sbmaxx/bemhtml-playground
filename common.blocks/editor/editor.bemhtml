@@ -1,0 +1,7 @@
+block('editor')(
+    js()(true),
+    content()({
+        elem: 'textarea',
+        content: '"hello";'
+    })
+);
