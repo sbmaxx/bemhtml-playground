@@ -1,10 +1,10 @@
 {
-  "author": "",
-  "name": "bem-project-stub",
+  "author": "sbmaxx@gmail.com",
+  "name": "bemhtml-playground",
   "version": "1.0.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/bem/project-stub.git"
+    "url": "git://github.com/sbmaxx/bemhtml-demo.git"
   },
   "engines": {
     "node": ">=0.10"

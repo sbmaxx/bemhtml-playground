@@ -1,8 +1,8 @@
 {
-  "name": "bem-project-stub",
+  "name": "bemhtml-playground",
   "version": "1.0.0",
-  "description": "BEM project stub",
-  "bugs": "https://github.com/bem/project-stub/issues",
+  "description": "BEMHTML playground",
+  "bugs": "https://github.com/sbmaxx/bemhtml-demo/issues",
   "ignore": [
     ".bem/cache",
     "node_modules",
