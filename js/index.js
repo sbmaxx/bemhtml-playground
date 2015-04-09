@@ -16,7 +16,7 @@ function BEMHTMLController($scope) {
             console.log('failed compile');
             console.log(e.message);
             console.log(e.stack);
-            return;
+            return 'Compile error:\n' + e.message + '\n' + e.stack;
         }
         var res = '';
         try {
