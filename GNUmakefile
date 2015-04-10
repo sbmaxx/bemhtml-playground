@@ -1,13 +1,8 @@
-REMOTE_DIR = sbmaxx@rozhdestvenskiy.ru:/var/www/vhosts/rozhdestvenskiy.ru/public/dev/bemhtml
-LOCAL_DIR = /Users/sbmaxx/Develop/bemhtml-demo
-
+BUNDLE_DIR = desktop.bundles/index/
 install:
 	npm install
+	ln -s $(BUNDLE_DIR)index.html .
+	ln -s $(BUNDLE_DIR)_index.css .
+	ln -s $(BUNDLE_DIR)_index.js .
 
-upload:
-	rsync -azh --progress -e "ssh" $(LOCAL_DIR)/ $(REMOTE_DIR)
-
-download:
-	rsync -azh --progress -e "ssh" $(REMOTE_DIR)/ $(LOCAL_DIR)
-
-.PHONY: download upload install
+.PHONY: install
