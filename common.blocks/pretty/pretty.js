@@ -36,7 +36,7 @@
     });
 */
 
-modules.define('html', function(provide) {
+modules.define('pretty', function(provide) {
 
     function style_html(html_source, options) {
     //Wrapper function to invoke all the necessary constructors and deal with the output.

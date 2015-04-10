@@ -1,5 +1,6 @@
 [{
     shouldDeps : [
-        { block : 'html' }
+        { block : 'pretty' },
+        { block : 'store' }
     ]
 }]
