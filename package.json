@@ -33,7 +33,8 @@
   "scripts": {
     "start": "enb server",
     "postinstall": "bower-npm-install",
-    "deps": "bower-npm-install --non-interactive"
+    "deps": "bower-npm-install --non-interactive",
+    "build": "YENV=production enb make"
   },
   "private": true
 }
