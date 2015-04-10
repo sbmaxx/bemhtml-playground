@@ -41,3 +41,27 @@
     bottom: 0;
     right: 0;
 }
+.demo__paranja
+{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+.demo__spinner
+{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    right: 0;
+    bottom: 0;
+    width: 28px;
+    height: 28px;
+    margin: -14px 0 0 -14px;
+}
+
+.demo_state_loading .demo__content
+{
+    display: none;
+}

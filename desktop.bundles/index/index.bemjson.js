@@ -13,43 +13,59 @@
     mods : { theme : 'islands' },
     content : {
         block: 'demo',
+        mods: { state: 'loading' },
         content: [
             {
-                elem: 'top',
+                elem: 'content',
                 content: [
                     {
-                        block: 'editor',
-                        mix: [{ block: 'demo', elem: 'bemjson' }],
-                        code: [
-                            "({",
-                            "    block: 'button',",
-                            "    text: 'button'",
-                            "});"
-                        ].join('\n')
+                        elem: 'top',
+                        content: [
+                            {
+                                block: 'editor',
+                                mix: [{ block: 'demo', elem: 'bemjson' }],
+                                code: [
+                                    "({",
+                                    "    block: 'button',",
+                                    "    text: 'button'",
+                                    "});"
+                                ].join('\n')
+                            },
+                            {
+                                block: 'editor',
+                                mix: [{ block: 'demo', elem: 'bemhtml' }],
+                                code: [
+                                    "block('button')(",
+                                    "    tag()('button'),",
+                                    "    content()({ elem: 'text', content: this.ctx.text })",
+                                    ");"
+                                ].join('\n')
+                            }
+                        ]
                     },
                     {
-                        block: 'editor',
-                        mix: [{ block: 'demo', elem: 'bemhtml' }],
-                        code: [
-                            "block('button')(",
-                            "    tag()('button'),",
-                            "    content()({ elem: 'text', content: this.ctx.text })",
-                            ");"
-                        ].join('\n')
+                        elem: 'bottom',
+                        content: {
+                            block: 'editor',
+                            js: {
+                                readOnly: true,
+                                showInvisibles: true,
+                                mode: 'ace/mode/html'
+                            },
+                            mix: [{ block: 'demo', elem: 'html' }],
+                            code: ''
+                        }
                     }
                 ]
             },
             {
-                elem: 'bottom',
+                elem: 'paranja',
                 content: {
-                    block: 'editor',
-                    js: {
-                        readOnly: true,
-                        showInvisibles: true,
-                        mode: 'ace/mode/html'
-                    },
-                    mix: [{ block: 'demo', elem: 'html' }],
-                    code: ''
+                    elem: 'spinner',
+                    content: {
+                        block : 'spin',
+                        mods : { theme : 'islands', size : 'm', visible : true }
+                    }
                 }
             }
         ]
