@@ -5,6 +5,7 @@
     left: 0;
     bottom: 0;
     right: 0;
+    background: #fff;
 }
 .demo__top
 {
@@ -48,6 +49,8 @@
     bottom: 0;
     left: 0;
     right: 0;
+    background: #fbf1d3;
+    opacity: 0;
 }
 .demo__spinner
 {
@@ -60,8 +63,20 @@
     height: 28px;
     margin: -14px 0 0 -14px;
 }
-
+.demo__content,
+.demo__paranja
+{
+    transition: opacity 0.3s;
+}
 .demo_state_loading .demo__content
+{
+    opacity: 0;
+}
+.demo_state_loading .demo__paranja
+{
+    opacity: 1;
+}
+.demo_state_loaded .demo__paranja
 {
     display: none;
 }

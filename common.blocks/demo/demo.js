@@ -32,10 +32,11 @@ modules.define('demo', ['i-bem__dom', 'pretty'], function(provide, BEMDOM, prett
 
                     this._load() || this._render();
 
+                    this.findBlockInside('spin').delMod('visible');
+                    this.delMod('state');
                     setTimeout(function() {
-                        this.findBlockInside('spin').delMod('visible');
-                        this.delMod('state');
-                    }.bind(this), 42);
+                        this.setMod('state', 'loaded');
+                    }.bind(this), 300);
 
                 }
             }
