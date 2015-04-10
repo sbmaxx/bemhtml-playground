@@ -1,7 +1,9 @@
 block('editor')(
     js()(true),
-    content()({
-        elem: 'textarea',
-        content: '"hello";'
+    content()(function() {
+        return {
+            elem: 'textarea',
+            content: this.ctx.code
+        }
     })
 );

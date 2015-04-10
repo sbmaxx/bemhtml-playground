@@ -20,12 +20,22 @@
                     {
                         block: 'editor',
                         mix: [{ block: 'demo', elem: 'bemjson' }],
-                        code: 'ololo'
+                        code: [
+                            "({",
+                            "    block: 'button',",
+                            "    text: 'button'",
+                            "});"
+                        ].join('\n')
                     },
                     {
                         block: 'editor',
-                        mix: [{ block: 'demo', elem: 'template' }],
-                        code: 'ololo'
+                        mix: [{ block: 'demo', elem: 'bemhtml' }],
+                        code: [
+                            "block('button')(",
+                            "    tag()('button'),",
+                            "    content()({ elem: 'text', content: this.ctx.text })",
+                            ");"
+                        ].join('\n')
                     }
                 ]
             },
@@ -35,10 +45,11 @@
                     block: 'editor',
                     js: {
                         readOnly: true,
-                        showInvisibles: true
+                        showInvisibles: true,
+                        mode: 'ace/mode/html'
                     },
                     mix: [{ block: 'demo', elem: 'html' }],
-                    code: 'ololo'
+                    code: ''
                 }
             }
         ]

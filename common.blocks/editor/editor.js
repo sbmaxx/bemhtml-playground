@@ -9,17 +9,27 @@ modules.define('editor', ['i-bem__dom'], function(provide, BEMDOM) {
                     editor.setShowInvisibles(this.params.showInvisibles);
                     editor.setReadOnly(this.params.readOnly);
                     editor.setFontSize(this.params.fontSize);
-                    editor.getSession().setMode('ace/mode/javascript');
+                    editor.getSession().setMode(this.params.mode);
+                    editor.on('change', function(e) {
+                        this.emit('change');
+                    }.bind(this));
+                    this._editor = editor;
                 }
             }
         },
         getDefaultParams : function() {
             return {
-                fontSize: '14px'
+                fontSize: '14px',
+                mode: 'ace/mode/javascript'
             };
+        },
+        getValue : function() {
+            return this._editor.getSession().getValue();
+        },
+        setValue : function(value) {
+            this._editor.getSession().setValue(value);
+            return this;
         }
-    }, {
-
-    }));
+    }, {}));
 
 });
