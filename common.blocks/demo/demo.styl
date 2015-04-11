@@ -7,18 +7,20 @@
     right: 0;
     background: #fff;
 
+    $bottom = 40%
+
     &__top
     {
         position: absolute;
         top: 0;
         left: 0;
-        bottom: 30%;
+        bottom: $bottom;
         right: 0;
     }
     &__bottom
     {
         position: absolute;
-        top: 70%;
+        top: 100% - $bottom;
         left: 0;
         bottom: 0;
         right: 0;

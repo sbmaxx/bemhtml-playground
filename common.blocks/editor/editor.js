@@ -4,17 +4,22 @@ modules.define('editor', ['i-bem__dom'], function(provide, BEMDOM) {
         onSetMod : {
             'js' : {
                 'inited' : function() {
+
                     var editor = ace.edit(this.elem('textarea').get(0));
+
                     editor.setTheme('ace/theme/solarized_light');
                     editor.setShowInvisibles(this.params.showInvisibles);
                     editor.setReadOnly(this.params.readOnly);
                     editor.setFontSize(this.params.fontSize);
                     editor.$blockScrolling = Infinity;
                     editor.getSession().setMode(this.params.mode);
+
                     editor.on('change', function(e) {
                         this.emit('change');
                     }.bind(this));
+
                     this._editor = editor;
+
                 }
             }
         },
