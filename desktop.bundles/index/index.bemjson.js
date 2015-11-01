@@ -8,7 +8,8 @@
     ],
     scripts: [
         { elem : 'js', url : '_index.js' },
-        { elem : 'js', url : 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.9/ace.js' }
+        { elem : 'js', url : '_index.browser.bemhtml.js' },
+        { elem : 'js', url : 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.2/ace.js' }
     ],
     mods : { theme : 'islands' },
     content : {
@@ -37,8 +38,10 @@
                                 code: [
                                     "block('button')(",
                                     "    tag()('button'),",
-                                    "    content()({ elem: 'text', content: this.ctx.text })",
-                                    ");"
+                                    "    content()(function() {",
+                                    "        return { elem: 'text', content: this.ctx.text };",
+                                    "    })",
+                                    ")"
                                 ].join('\n')
                             }
                         ]
