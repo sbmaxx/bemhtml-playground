@@ -1,5 +1,7 @@
 modules.define('demo', ['i-bem__dom', 'pretty', 'functions__debounce'], function(provide, BEMDOM, pretty, debounce) {
 
+    var CURRENT_VERSION = '4.2.5';
+
     function notEval(str) {
         try {
             return (new Function('return ' + str))();
@@ -71,13 +73,14 @@ modules.define('demo', ['i-bem__dom', 'pretty', 'functions__debounce'], function
         },
         _save : function() {
             store.set('playground', {
+                version: CURRENT_VERSION,
                 bemhtml: this._getBEMHTML(),
                 bemjson: this._getBEMJSON()
             });
         },
         _load : function() {
             var data = store.get('playground');
-            if (!data) {
+            if (!data || data.version !== CURRENT_VERSION) {
                 return false;
             }
             if (data.bemhtml) {
