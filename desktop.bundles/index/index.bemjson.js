@@ -26,10 +26,10 @@
                                 block: 'editor',
                                 mix: [{ block: 'demo', elem: 'bemjson' }],
                                 code: [
-                                    "({",
+                                    "{",
                                     "    block: 'button',",
                                     "    text: 'button'",
-                                    "});"
+                                    "}"
                                 ].join('\n')
                             },
                             {
