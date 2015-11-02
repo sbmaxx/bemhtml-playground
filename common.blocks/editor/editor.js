@@ -11,6 +11,7 @@ modules.define('editor', ['i-bem__dom'], function(provide, BEMDOM) {
                     editor.setShowInvisibles(this.params.showInvisibles);
                     editor.setReadOnly(this.params.readOnly);
                     editor.setFontSize(this.params.fontSize);
+                    editor.setShowPrintMargin(false);
                     editor.$blockScrolling = Infinity;
                     editor.getSession().setMode(this.params.mode);
 
